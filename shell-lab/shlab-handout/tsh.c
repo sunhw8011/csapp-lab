@@ -190,12 +190,12 @@ void eval(char *cmdline)
             }
         }
 
-        if (!bg) {  // 父进程等待前台程序运行结束
+        if (!bg) {  // 如果是前台进程则tsh就要等进程结束
             if (waitpid(pid, &status, 0) < 0) {
                 unix_error("waitfg: waitpid error");
-            } else {
-                // printf("%d %s", pid, cmdline);
             }
+        } else {    // 后台进程直接输出进程信息即可，不用等其结束
+            printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
         }
     }
     return;
