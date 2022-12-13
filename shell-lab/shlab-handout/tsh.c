@@ -54,6 +54,9 @@ struct job_t jobs[MAXJOBS]; /* The job list */
 
 /* Function prototypes */
 
+/*Here are the functions define in csapp.c*/
+pid_t Fork();
+
 /* Here are the functions that you will implement */
 void eval(char *cmdline);
 int builtin_cmd(char **argv);
@@ -165,6 +168,36 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    char *argv[MAXARGS];
+    char buf[MAXLINE];  // 临时缓存，存储cmdline
+    int bg;             // 标识程序是否运行在后台，是则为正数
+    pid_t pid;
+    int status;         // 存储程序退出的状态
+
+    strcpy(buf, cmdline);
+    bg = parseline(cmdline, argv);
+
+    // 忽略空行
+    if (!argv[0]) {
+        return;
+    }
+    
+    if (!builtin_cmd(argv)) {
+        if ((pid = Fork())==0) {    // 用命令指定的程序代替子进程
+            if (execve(argv[0], argv, environ) < 0) {
+                printf("%s: Command not found\n", argv[0]);
+                exit(0);
+            }
+        }
+
+        if (!bg) {  // 父进程等待前台程序运行结束
+            if (waitpid(pid, &status, 0) < 0) {
+                unix_error("waitfg: waitpid error");
+            } else {
+                // printf("%d %s", pid, cmdline);
+            }
+        }
+    }
     return;
 }
 
@@ -231,6 +264,12 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    if (!strcmp(argv[0], "quit")) { // quit命令
+        exit(0);
+    }
+    if (!strcmp(argv[0], "&")) {    //忽略单个的&
+        return 1;
+    }
     return 0;     /* not a builtin command */
 }
 
@@ -505,5 +544,11 @@ void sigquit_handler(int sig)
     exit(1);
 }
 
-
+pid_t Fork() {
+    pid_t pid;
+    if ((pid=fork()) < 0) {
+        unix_error("Fork error");
+    }
+    return pid;
+}
 
