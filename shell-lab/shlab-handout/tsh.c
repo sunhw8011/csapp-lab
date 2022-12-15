@@ -173,9 +173,12 @@ void eval(char *cmdline)
     int bg;             // 标识程序是否运行在后台，是则为正数
     pid_t pid;
     int status;         // 存储程序退出的状态
+    // 阻塞用信号集, prev用于保存设置之前的信号集以便恢复
+    sigset_t mask, prev_mask;
 
     strcpy(buf, cmdline);
     bg = parseline(cmdline, argv);
+    sigemptyset(&mask);     // 初始化mask，将其置空
 
     // 忽略空行
     if (!argv[0]) {
@@ -183,6 +186,8 @@ void eval(char *cmdline)
     }
     
     if (!builtin_cmd(argv)) {
+        sigaddset(&mask, SIGCHLD);             //将SIGCHLD加入信号集中
+        sigprocmask(SIG_BLOCK, &mask, &prev_mask);   // 设置阻塞，之后进程将阻塞SIGCHLD信号
         if ((pid = Fork())==0) {    // 用命令指定的程序代替子进程
             if (execve(argv[0], argv, environ) < 0) {
                 printf("%s: Command not found\n", argv[0]);
@@ -195,6 +200,8 @@ void eval(char *cmdline)
                 unix_error("waitfg: waitpid error");
             }
         } else {    // 后台进程直接输出进程信息即可，不用等其结束
+            addjob(jobs, pid, (bg?BG:FG), cmdline);
+            sigprocmask(SIG_SETMASK, &prev_mask, NULL); // 取消SIGCHLD的阻塞
             printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
         }
     }
@@ -270,6 +277,10 @@ int builtin_cmd(char **argv)
     if (!strcmp(argv[0], "&")) {    //忽略单个的&
         return 1;
     }
+    if (!strcmp(argv[0], "jobs")) { // jobs命令
+        listjobs(jobs);
+        return 1;
+    }
     return 0;     /* not a builtin command */
 }
 
@@ -302,6 +313,18 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+    pid_t pid;
+    int old_errno = errno;
+    int status;
+    while((pid = waitpid(-1, &status, WNOHANG)) >0 ) {
+        if (WIFEXITED(status)) {
+            deletejob(jobs, pid);
+        }
+    }
+    if (errno != ECHILD) {
+        printf("waitpid error\n");
+    }
+    errno = old_errno;
     return;
 }
 
