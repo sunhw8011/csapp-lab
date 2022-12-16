@@ -172,7 +172,7 @@ void eval(char *cmdline)
     char buf[MAXLINE];  // 临时缓存，存储cmdline
     int bg;             // 标识程序是否运行在后台，是则为正数
     pid_t pid;
-    int status;         // 存储程序退出的状态
+    // int status;         // 存储程序退出的状态
     // 阻塞用信号集, prev用于保存设置之前的信号集以便恢复
     sigset_t mask, prev_mask;
 
@@ -189,19 +189,23 @@ void eval(char *cmdline)
         sigaddset(&mask, SIGCHLD);             //将SIGCHLD加入信号集中
         sigprocmask(SIG_BLOCK, &mask, &prev_mask);   // 设置阻塞，之后进程将阻塞SIGCHLD信号
         if ((pid = Fork())==0) {    // 用命令指定的程序代替子进程
+            sigprocmask(SIG_SETMASK, &prev_mask, NULL); // 取消SIGCHLD的阻塞
+            setpgid(0, 0);      // 设置子进程的PGID = PID
             if (execve(argv[0], argv, environ) < 0) {
                 printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
         }
 
+        addjob(jobs, pid, (bg?BG:FG), cmdline);
+        sigprocmask(SIG_SETMASK, &prev_mask, NULL); // 取消SIGCHLD的阻塞
+
         if (!bg) {  // 如果是前台进程则tsh就要等进程结束
-            if (waitpid(pid, &status, 0) < 0) {
-                unix_error("waitfg: waitpid error");
-            }
+            // if (waitpid(pid, &status, 0) < 0) {
+            //     unix_error("waitfg: waitpid error");
+            // }
+            waitfg(pid);
         } else {    // 后台进程直接输出进程信息即可，不用等其结束
-            addjob(jobs, pid, (bg?BG:FG), cmdline);
-            sigprocmask(SIG_SETMASK, &prev_mask, NULL); // 取消SIGCHLD的阻塞
             printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
         }
     }
@@ -297,6 +301,9 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    while (pid == fgpid(jobs)) {
+        usleep(100);
+    }
     return;
 }
 
@@ -319,10 +326,11 @@ void sigchld_handler(int sig)
     while((pid = waitpid(-1, &status, WNOHANG)) >0 ) {
         if (WIFEXITED(status)) {
             deletejob(jobs, pid);
+            //printf("delete pid %d", pid);
         }
     }
-    if (errno != ECHILD) {
-        printf("waitpid error\n");
+    if (pid != 0 && errno != ECHILD) {
+        printf("waitpid %d error, errno is %d\n", pid, errno);
     }
     errno = old_errno;
     return;
@@ -335,6 +343,10 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+    pid_t pid = fgpid(jobs);
+    printf("Job [%d] (%d) terminated by signal %d \n", pid2jid(pid), pid, sig);
+    deletejob(jobs, pid);
+    kill(-pid, sig);
     return;
 }
 
@@ -345,6 +357,10 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    pid_t pid = fgpid(jobs);
+    printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, sig);
+    getjobpid(jobs, pid)->state = ST;
+    kill(-pid, sig);
     return;
 }
 
