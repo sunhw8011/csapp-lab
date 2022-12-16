@@ -285,6 +285,10 @@ int builtin_cmd(char **argv)
         listjobs(jobs);
         return 1;
     }
+    if (!strcmp(argv[0], "fg") || !strcmp(argv[0], "bg")) {
+        do_bgfg(argv);
+        return 1;
+    }
     return 0;     /* not a builtin command */
 }
 
@@ -293,6 +297,31 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    char *id = argv[1];
+    pid_t pid;
+    struct job_t *job;
+
+    // 根据JID或者PID定位进程
+    if(id[0] == '%') {
+        int jid = atoi(id+1);
+        job = getjobjid(jobs, jid);
+        pid = job->pid;
+    } else {
+        pid = atoi(id);
+        job = getjobpid(jobs, pid);
+    }
+
+    // 向进程及其子进程发送SIGCONT信号
+    kill(-pid, SIGCONT);
+
+    if (!strcmp(argv[0], "fg")) {   // fg命令则让tsh等待进程结束
+        job->state = FG;
+        waitfg(pid);
+    } else {    // bg命令则不用等待，直接输出信息即可
+        job->state = BG;
+        printf("[%d] (%d) %s", pid2jid(pid), pid, job->cmdline);
+    }
+
     return;
 }
 
