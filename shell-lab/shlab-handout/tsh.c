@@ -301,14 +301,39 @@ void do_bgfg(char **argv)
     pid_t pid;
     struct job_t *job;
 
+    // 出错情况1：没有带参数
+    if (!id) {
+        printf("%s command requires PID or %%jobid arguments\n", argv[0]);
+        return;
+    }
+
     // 根据JID或者PID定位进程
     if(id[0] == '%') {
         int jid = atoi(id+1);
+        // 出错情况2：jobId不合法：负数或者字母
+        if (jid <= 0) {
+            printf("%s: argument must be a PID or %%jobId\n", argv[0]);
+            return;
+        }
         job = getjobjid(jobs, jid);
+        // 出错情况4：列表中没有这个job
+        if (job==NULL) {
+            printf("%s: No such job\n", id);
+            return;
+        }
         pid = job->pid;
     } else {
         pid = atoi(id);
+        // 出错情况3：PID不合法
+        if (pid<=0) {
+            printf("%s: argument must be a PID or %%jobId\n", argv[0]);
+            return;
+        }
         job = getjobpid(jobs, pid);
+        if (job==NULL) {
+            printf("%s: No such job\n", id);
+            return;
+        }
     }
 
     // 向进程及其子进程发送SIGCONT信号
