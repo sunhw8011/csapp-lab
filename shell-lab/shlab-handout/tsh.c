@@ -377,11 +377,15 @@ void sigchld_handler(int sig)
     pid_t pid;
     int old_errno = errno;
     int status;
-    while((pid = waitpid(-1, &status, WNOHANG)) >0 ) {
+    while((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) >0 ) {
         if (WIFEXITED(status)) {
             deletejob(jobs, pid);
-            //printf("delete pid %d", pid);
+        } else if (WIFSTOPPED(status)) {
+            getjobpid(jobs, pid) -> state = ST;
+        } else if (WIFSIGNALED(status)) {
+            deletejob(jobs, pid);
         }
+
     }
     if (pid != 0 && errno != ECHILD) {
         printf("waitpid %d error, errno is %d\n", pid, errno);
