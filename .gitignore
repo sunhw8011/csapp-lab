@@ -1,1 +1,4 @@
 shell-lab/shlab-handout/tsh
+malloc-lab/malloclab-handout/mdriver
+malloc-lab/malloclab-handout/mdriver.o
+malloc-lab/malloclab-handout/mm.o
