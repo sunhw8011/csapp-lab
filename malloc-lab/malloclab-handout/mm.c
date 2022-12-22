@@ -44,6 +44,26 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+/*定义一些方便使用的宏*/
+#define WSIZE 4             // 字大小
+#define DSIZE 8             // 双字大小
+#define CHUNKSIZE (1<<12)   // 一次拓展堆空间大小，单位字节
+#define MAX(x, y) ((x)>(y)?(x):(y))
+
+#define PACK(size, alloc) ((size) | (alloc))        // 设置头/脚部的方法
+
+#define GET(p) (*(unsigned int *)p)                 // 读p指向的字
+#define PUT(p, val) (*(unsigned int *)(p) = (val))  // 写p指向的字
+
+#define GET_SIZE(p) (GET(p) & ~0x7) // 获得块的大小，这里默认p指向头部或脚部
+#define GET_ALLOC(p) (GET(p) & 0x1) // 获得块是否已分配，这里默认p指向头部或脚部
+
+#define HDRP(bp) ((char *)(bp) - WSIZE)     // 获取bp指向块的头部
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)    // 获取bp指向块的尾部
+
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) // 获取bp下一个块的块指针
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE))) // 获取bp上一个块的块指针
+
 /* 
  * mm_init - initialize the malloc package.
  */

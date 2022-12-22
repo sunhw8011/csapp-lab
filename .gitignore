@@ -2,3 +2,10 @@ shell-lab/shlab-handout/tsh
 malloc-lab/malloclab-handout/mdriver
 malloc-lab/malloclab-handout/mdriver.o
 malloc-lab/malloclab-handout/mm.o
+malloc-lab/malloclab-handout/memlib.o
+malloc-lab/malloclab-handout/ftimer.o
+.gitignore
+malloc-lab/malloclab-handout/fcyc.o
+malloc-lab/malloclab-handout/fsecs.o
+.gitignore
+malloc-lab/malloclab-handout/clock.o
