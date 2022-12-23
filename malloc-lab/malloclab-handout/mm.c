@@ -105,8 +105,8 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    size_t asize;
-    size_t extend_size;
+    size_t asize;   // 实际需要分配的空间
+    size_t extend_size; // 如果需要拓展堆，则需要的拓展空间
     char *bp;
 
     // 不合法的输入
@@ -114,17 +114,21 @@ void *mm_malloc(size_t size)
         return NULL;
     }
 
-    if (size <= DSIZE) {
+    // 保证双字对齐的要求
+    if (size <= DSIZE) {    // 最小块的限制
         asize = 2*DSIZE;
     } else {
+        // 实际需要的空间 = 申请空间 + 头部和脚部，然后对双字向上取整以对齐
         asize = DSIZE * ((size + (DSIZE)+(DSIZE-1)) / DSIZE);
     }
 
+    // 采用首次匹配的方式找到合适的空闲块
     if ((bp=find_fit(asize)) != NULL) {
         place(bp, asize);
         return bp;
     }
 
+    // 如果没有足够大的空闲块，则拓展堆空间
     extend_size = MAX(asize, CHUNKSIZE);
     if ((bp=extend_heap(extend_size/WSIZE)) == NULL) {
         return NULL;
@@ -194,7 +198,7 @@ static void *extend_heap(size_t words) {
 }
 
 /**
- * 合并bp指向块的前后空闲空间
+ * 合并bp指向块的前后空闲空间（默认当前块空闲）
 */
 static void *coalesce(void *bp) {
     // 判断前后块的分配情况
@@ -231,23 +235,27 @@ static void *coalesce(void *bp) {
  * 将申请的空间放入空闲块中
 */
 static void place(void *bp, size_t asize) {
-    size_t csize = GET_SIZE(HDRP(bp));
-    size_t rsize = csize - asize;
+    size_t csize = GET_SIZE(HDRP(bp));  // 空闲块本身的大小
+    size_t rsize = csize - asize;       // 分配空间后剩余大小
 
-    if ((rsize) >= 2*DSIZE) {
+    if ((rsize) >= 2*DSIZE) {   // 如果剩下的空间足够再形成一个块
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
         bp = NEXT_BLKP(bp);
         PUT(HDRP(bp), PACK(rsize, 0));
         PUT(FTRP(bp), PACK(rsize, 0));
-    } else {
+    } else {    // 剩下的空间已经不够再形成一个新块，则分配空闲块的所有
         PUT(HDRP(bp), PACK(csize, 1));
         PUT(FTRP(bp), PACK(csize, 1));
     }
 }
 
+/**
+ * 首次适配的查找方式
+*/
 static void *find_fit(size_t asize) {
     void *bp;
+    // 从头遍历堆空间中的所有块
     for (bp = heap_listp; GET_SIZE(HDRP(bp))>0; bp = NEXT_BLKP(bp)) {
         if ((GET_SIZE(HDRP(bp)) >= asize) && (!GET_ALLOC(HDRP(bp)))) {
             return bp;

@@ -25,7 +25,7 @@ handin:
 	cp mm.c $(HANDINDIR)/$(TEAM)-$(VERSION)-mm.c
 
 test:
-	./mdriver -t ../traces/ -V -a
+	./mdriver -V -a
 
 clean:
 	rm -f *~ *.o mdriver
