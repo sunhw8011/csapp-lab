@@ -87,23 +87,25 @@ void place(void *bp, size_t asize);
  */
 int mm_init(void)
 {
+    assert(CLASS_NUM%2==0); // 对齐条件限制
+    // 申请初始空间
     if ((heap_listp = mem_sbrk((4+CLASS_NUM)*WSIZE)) == (void *)-1) {
         return -1;
     }
 
-    for (int i=0; i<CLASS_NUM; ++i) {
+    for (int i=0; i<CLASS_NUM; ++i) {   // 初始化链表数组
         PUT(heap_listp + i*WSIZE, NULL);
     }
 
+    // 设置填充字，序言块和结尾块
     PUT(heap_listp + WSIZE*CLASS_NUM, 0);
     PUT(heap_listp + ((1+CLASS_NUM)*WSIZE), PACK(DSIZE, 1));
     PUT(heap_listp + ((2+CLASS_NUM)*WSIZE), PACK(DSIZE, 1));
     PUT(heap_listp + ((3+CLASS_NUM)*WSIZE), PACK(0, 1));
 
-    if (extend_heap(CHUNKSIZE/WSIZE) == NULL) {
+    if (extend_heap(CHUNKSIZE/WSIZE) == NULL) { // 用空闲块拓展堆
         return -1;
     }
-    
     return 0;
 }
 
@@ -201,7 +203,8 @@ void insert(void *bp) {
 
     // 链表是空的
     if (HEAD_FRBLK(index)==NULL) {
-        PUT(heap_listp + WSIZE*index, bp);
+        PUT(heap_listp + WSIZE*index, bp);  // 将链表头指向这个块
+        // 将这个块的前向和后向指针置空
         PUT(bp, NULL);
         PUT((unsigned int *)bp+1, NULL);
     } else {
@@ -216,23 +219,23 @@ void delete(void* bp) {
     size_t size = GET_SIZE(HDRP(bp));
     int index = get_index(size);
 
-    // 情况1：链表中只有这一个块
+    // 情况1：链表中只有这一个块，直接将头指针置空
     if (PREV_FRBLK(bp)==NULL && NEXT_FRBLK(bp)==NULL) {
         PUT(heap_listp + WSIZE*index, NULL);
     }
-    // 情况2：这个块在链表末尾
+    // 情况2：这个块在链表末尾，将前一个空闲块后向指针置空
     else if (PREV_FRBLK(bp)!=NULL && NEXT_FRBLK(bp)==NULL) {
         PUT(PREV_FRBLK(bp)+1, NULL);
     }
     // 情况3：这个块是第一个节点
     else if (PREV_FRBLK(bp)==NULL && NEXT_FRBLK(bp)!=NULL) {
-        PUT(heap_listp + WSIZE*index, NEXT_FRBLK(bp));
-        PUT(NEXT_FRBLK(bp), NULL);
+        PUT(heap_listp + WSIZE*index, NEXT_FRBLK(bp));  // 头指针指向下一个空闲块
+        PUT(NEXT_FRBLK(bp), NULL);  // 下一个空闲块的前向指针置空
     }
     // 情况4：这个块在中间
     else if(PREV_FRBLK(bp)!=NULL && NEXT_FRBLK(bp)!=NULL) {
-        PUT(NEXT_FRBLK(bp), PREV_FRBLK(bp));
-        PUT(PREV_FRBLK(bp)+1, NEXT_FRBLK(bp));
+        PUT(NEXT_FRBLK(bp), PREV_FRBLK(bp));    // 后一个块的前向指针指向前一个块
+        PUT(PREV_FRBLK(bp)+1, NEXT_FRBLK(bp));  // 前一个块的后向指针指向后一个块
     }
 }
 
@@ -303,12 +306,12 @@ void *find_fit(size_t asize) {
     while (index < CLASS_NUM) {
         bp = HEAD_FRBLK(index);
         while (bp) {
-            if (GET_SIZE(HDRP(bp)) >= asize) {
+            if (GET_SIZE(HDRP(bp)) >= asize) {  // 找到了合适的分配块
                 return (void *)bp;
             }
             bp = NEXT_FRBLK(bp);
         }
-        ++index;
+        ++index;    // 整个链表都找不到，就去找下一个链表
     }
     return NULL;
 }
