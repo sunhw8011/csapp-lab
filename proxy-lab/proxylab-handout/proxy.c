@@ -43,6 +43,8 @@ int main(int argc, char** argv)
 
 void doit(int fd) {
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
+    int serverfd;
+    int n;
     rio_t client_rio, server_rio;
 
     char hostname[MAXLINE], port[MAXLINE], path[MAXLINE];
@@ -54,13 +56,28 @@ void doit(int fd) {
         return;
     }
     sscanf(buf, "%s %s %s", method, uri, version);
-    printf("client uri is: %s\n", uri);   // 调试用
+    //printf("client uri is: %s\n", uri);
     parse_uri(uri, hostname, port, path);   // 解析uri中元素
-    printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
-    build_reqheader(&client_rio, newreq, hostname, port, path);
-    printf("the new req is: \n");
-    printf("%s", newreq);
+    //printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
+    build_reqheader(&client_rio, newreq, hostname, port, path); //构造新的请求头发给服务器
+    //pintf("the new req is: \n");
+    //printf("%s", newreq);
 
+    serverfd = Open_clientfd(hostname, port);
+    if (serverfd < 0) {
+        fprintf(stderr, "connect to real server err");
+        return;
+    }
+
+    Rio_readinitb(&server_rio, serverfd);
+    Rio_writen(serverfd, newreq, strlen(newreq));
+
+    while ((n = Rio_readlineb(&server_rio, buf, MAXLINE))!=0) {
+        printf("get %d bytes from server\n", n);
+        Rio_writen(fd, buf, n);
+    }
+
+    Close(serverfd);
 }
 
 void parse_uri(char *uri, char *hostname, char *port, char *path) {

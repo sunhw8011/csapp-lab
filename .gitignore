@@ -16,3 +16,5 @@ proxy-lab/proxylab-handout/tiny/cgi-bin/adder
 proxy-lab/proxylab-handout/csapp.o
 proxy-lab/proxylab-handout/proxy
 proxy-lab/proxylab-handout/proxy.o
+proxy-lab/proxylab-handout/.noproxy/tiny
+proxy-lab/proxylab-handout/.proxy/tiny
