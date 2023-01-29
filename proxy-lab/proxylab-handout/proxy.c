@@ -11,6 +11,7 @@ static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64;
 
 void doit(int fd);
 void parse_uri(char *uri, char *hostname, char *port, char *path);
+void build_reqheader(rio_t *rp, char *newreq, char *hostname, char *port, char *path);
 
 int main(int argc, char** argv)
 {
@@ -45,6 +46,7 @@ void doit(int fd) {
     rio_t client_rio, server_rio;
 
     char hostname[MAXLINE], port[MAXLINE], path[MAXLINE];
+    char newreq[MAXLINE];
 
     // 面对客户端，自己是服务器，接收客户端发送的请求
     Rio_readinitb(&client_rio, fd);
@@ -54,8 +56,10 @@ void doit(int fd) {
     sscanf(buf, "%s %s %s", method, uri, version);
     printf("client uri is: %s\n", uri);   // 调试用
     parse_uri(uri, hostname, port, path);   // 解析uri中元素
-    printf("hostname: %s\n, port: %s\n, path: %s\n", hostname, port, path);
-
+    printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
+    build_reqheader(&client_rio, newreq, hostname, port, path);
+    printf("the new req is: \n");
+    printf("%s", newreq);
 
 }
 
@@ -90,4 +94,22 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
         strcpy(hostname, hostpos+2);
     }
     return;
+}
+
+void build_reqheader(rio_t *rp, char *newreq, char *hostname, char *port, char *path) {
+    sprintf(newreq, "GET %s HTTP/1.0\r\n", path);
+
+    char buf[MAXLINE];
+    // 循环从客户端输入中读取行
+    while (Rio_readlineb(rp, buf, MAXLINE) > 0) {
+        if (!strcmp(buf, "\r\n")) break;    // 空行，表示请求头已经结束
+        if (strstr(buf, "Host:")!=NULL) continue; // Host由我们自己设置
+        if (strstr(buf, "User-Agent:")!=NULL) continue; // User-Agent由我们自己设置
+
+        sprintf(newreq, "%s%s", newreq, buf);   // 其他请求头直接原封不动加入请求中
+    }
+    // 添加上请求的必要信息
+    sprintf(newreq, "%sHost: %s:%s\r\n", newreq, hostname, port);
+    sprintf(newreq, "%s%s", newreq, user_agent_hdr);
+    sprintf(newreq, "%s\r\n", newreq);
 }
