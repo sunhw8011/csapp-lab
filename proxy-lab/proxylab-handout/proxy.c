@@ -91,20 +91,26 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
     if (hostpos==NULL) {
         // 此种情况下，uri为 /home.html
         char *pathpos = strstr(uri, "/");
-        if (pathpos == NULL) {
-            hostpos = uri;
+        if (pathpos != NULL) {
+            strcpy(path, pathpos);
+            strcpy(port, "80"); //没有包含端口信息，则默认端口为80
+            return;
         }
-        strcpy(path, pathpos);
-        strcpy(port, "80"); //没有包含端口信息，则默认端口为80
-        return;
+        hostpos = uri;
+    } else {
+        hostpos += 2;
     }
-    hostpos += 2;
     char *portpos = strstr(hostpos, ":");
     // hostpos为：//localhost:12345/home.html
     // portpos为：:12345/home.html
     if (portpos != NULL) {
         int portnum;
-        sscanf(portpos+1, "%d%s", &portnum, path);
+        char *pathpos = strstr(portpos, "/");
+        if (pathpos!=NULL) {
+            sscanf(portpos+1, "%d%s", &portnum, path);
+        } else {
+            sscanf(portpos+1, "%d", &portnum);
+        }
         sprintf(port, "%d", portnum);
         *portpos = '\0';
     } else {
