@@ -8,6 +8,8 @@
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
+static const char *conn_hdr = "Connection: close\r\n";
+static const char *proxy_conn_hdr = "Proxy-Connection: close\r\n";
 
 void doit(int fd);
 void parse_uri(char *uri, char *hostname, char *port, char *path);
@@ -122,11 +124,15 @@ void build_reqheader(rio_t *rp, char *newreq, char *hostname, char *port, char *
         if (!strcmp(buf, "\r\n")) break;    // 空行，表示请求头已经结束
         if (strstr(buf, "Host:")!=NULL) continue; // Host由我们自己设置
         if (strstr(buf, "User-Agent:")!=NULL) continue; // User-Agent由我们自己设置
+        if (strstr(buf, "Connection:")!=NULL) continue; // Connection由我们自己设置
+        if (strstr(buf, "Proxy-Connection:")!=NULL) continue; // Proxy-Connection由我们自己设置
 
         sprintf(newreq, "%s%s", newreq, buf);   // 其他请求头直接原封不动加入请求中
     }
     // 添加上请求的必要信息
     sprintf(newreq, "%sHost: %s:%s\r\n", newreq, hostname, port);
     sprintf(newreq, "%s%s", newreq, user_agent_hdr);
+    sprintf(newreq, "%s%s", newreq, conn_hdr);
+    sprintf(newreq, "%s%s", newreq, proxy_conn_hdr);
     sprintf(newreq, "%s\r\n", newreq);
 }
