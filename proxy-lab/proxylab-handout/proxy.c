@@ -13,7 +13,7 @@ static const char *proxy_conn_hdr = "Proxy-Connection: close\r\n";
 
 void doit(int fd);
 void parse_uri(char *uri, char *hostname, char *port, char *path);
-void build_reqheader(rio_t *rp, char *newreq, char *hostname, char *port, char *path);
+void build_reqheader(rio_t *rp, char *newreq, char *method, char *hostname, char *port, char *path);
 
 int main(int argc, char** argv)
 {
@@ -61,25 +61,28 @@ void doit(int fd) {
     //printf("client uri is: %s\n", uri);
     parse_uri(uri, hostname, port, path);   // 解析uri中元素
     //printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
-    build_reqheader(&client_rio, newreq, hostname, port, path); //构造新的请求头发给服务器
+    build_reqheader(&client_rio, newreq, method, hostname, port, path); //构造新的请求头
     //pintf("the new req is: \n");
     //printf("%s", newreq);
 
+    // 与目标服务器建立连接
     serverfd = Open_clientfd(hostname, port);
     if (serverfd < 0) {
         fprintf(stderr, "connect to real server err");
         return;
     }
 
+    // 发送请求报文
     Rio_readinitb(&server_rio, serverfd);
     Rio_writen(serverfd, newreq, strlen(newreq));
 
+    // 将目标服务器的内容接收后原封不动转发给客户端
     while ((n = Rio_readlineb(&server_rio, buf, MAXLINE))!=0) {
         printf("get %d bytes from server\n", n);
         Rio_writen(fd, buf, n);
     }
 
-    Close(serverfd);
+    Close(serverfd);    // 别忘了关闭文件描述符
 }
 
 void parse_uri(char *uri, char *hostname, char *port, char *path) {
@@ -115,8 +118,8 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
     return;
 }
 
-void build_reqheader(rio_t *rp, char *newreq, char *hostname, char *port, char *path) {
-    sprintf(newreq, "GET %s HTTP/1.0\r\n", path);
+void build_reqheader(rio_t *rp, char *newreq, char *method, char *hostname, char *port, char *path) {
+    sprintf(newreq, "%s %s HTTP/1.0\r\n", method, path);
 
     char buf[MAXLINE];
     // 循环从客户端输入中读取行
