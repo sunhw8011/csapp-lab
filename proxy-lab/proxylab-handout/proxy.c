@@ -58,7 +58,7 @@ void doit(int fd) {
         return;
     }
     sscanf(buf, "%s %s %s", method, uri, version);
-    //printf("client uri is: %s\n", uri);
+    printf("client uri is: %s\n", uri);
     parse_uri(uri, hostname, port, path);   // 解析uri中元素
     //printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
     build_reqheader(&client_rio, newreq, method, hostname, port, path); //构造新的请求头
@@ -91,30 +91,31 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
     if (hostpos==NULL) {
         // 此种情况下，uri为 /home.html
         char *pathpos = strstr(uri, "/");
-        if (pathpos != NULL) {
-            strcpy(path, pathpos);
+        if (pathpos == NULL) {
+            hostpos = uri;
         }
+        strcpy(path, pathpos);
         strcpy(port, "80"); //没有包含端口信息，则默认端口为80
         return;
-    } else {
-        char *portpos = strstr(hostpos+2, ":");
-        // hostpos为：//localhost:12345/home.html
-        // portpos为：:12345/home.html
-        if (portpos != NULL) {
-            int portnum;
-            sscanf(portpos+1, "%d%s", &portnum, path);
-            sprintf(port, "%d", portnum);
-            *portpos = '\0';
-        } else {
-            char *pathpos = strstr(hostpos+2, "/");
-            if (pathpos != NULL) {
-                strcpy(path, pathpos);
-                *pathpos = '\0';
-            }
-            strcpy(port, "80");
-        }
-        strcpy(hostname, hostpos+2);
     }
+    hostpos += 2;
+    char *portpos = strstr(hostpos, ":");
+    // hostpos为：//localhost:12345/home.html
+    // portpos为：:12345/home.html
+    if (portpos != NULL) {
+        int portnum;
+        sscanf(portpos+1, "%d%s", &portnum, path);
+        sprintf(port, "%d", portnum);
+        *portpos = '\0';
+    } else {
+        char *pathpos = strstr(hostpos, "/");
+        if (pathpos != NULL) {
+            strcpy(path, pathpos);
+            *pathpos = '\0';
+        }
+        strcpy(port, "80");
+    }
+    strcpy(hostname, hostpos);
     return;
 }
 
