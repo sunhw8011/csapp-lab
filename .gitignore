@@ -19,3 +19,4 @@ proxy-lab/proxylab-handout/proxy.o
 proxy-lab/proxylab-handout/.noproxy/tiny
 proxy-lab/proxylab-handout/.proxy/tiny
 proxy-lab/proxylab-handout/sbuf.o
+proxy-lab/proxylab-handout/.proxy/home.html

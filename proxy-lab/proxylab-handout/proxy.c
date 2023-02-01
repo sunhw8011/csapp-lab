@@ -1,10 +1,15 @@
 #include <stdio.h>
 
 #include "csapp.h"
+#include "sbuf.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
+
+// 设置默认的线程数和同时的连接数
+#define NTHREADS 4
+#define SBUFSIZE 16
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
@@ -15,18 +20,31 @@ void doit(int fd);
 void parse_uri(char *uri, char *hostname, char *port, char *path);
 void build_reqheader(rio_t *rp, char *newreq, char *method, char *hostname, char *port, char *path);
 
+void *thread(void *vargp);
+
+sbuf_t sbuf;
+
 int main(int argc, char** argv)
 {
     int listenfd, connfd;
     socklen_t clientlen;
     char hostname[MAXLINE], port[MAXLINE];
     struct sockaddr_storage clientaddr;
+
+    pthread_t tid;
     
     if (argc != 2) {
         fprintf(stderr, "usage :%s <port> \n", argv[0]);
         exit(1);
     }
     signal(SIGPIPE, SIG_IGN);   // 防止收到SIGPIPE信号而过早终止
+
+    sbuf_init(&sbuf, SBUFSIZE);    // 初始化并发缓冲区
+
+    // 创建一定数量的工作线程
+    for (int i=0; i<NTHREADS; ++i) {
+        Pthread_create(&tid, NULL, thread, NULL);
+    }
 
     listenfd = Open_listenfd(argv[1]);
     while(1) {
@@ -35,11 +53,13 @@ int main(int argc, char** argv)
         Getnameinfo((SA *) &clientaddr, clientlen, hostname, MAXLINE, 
                     port, MAXLINE, 0);
         printf("Accepted connection from (%s, %s)\n", hostname, port);
-        doit(connfd);
-        Close(connfd);
+        // 向信号量缓冲区中写入这个文件描述符
+        sbuf_insert(&sbuf, connfd);
+        // doit(connfd);
+        // Close(connfd);
     }
     
-    printf("%s", user_agent_hdr);
+    // printf("%s", user_agent_hdr);
     return 0;
 }
 
@@ -145,4 +165,13 @@ void build_reqheader(rio_t *rp, char *newreq, char *method, char *hostname, char
     sprintf(newreq, "%s%s", newreq, conn_hdr);
     sprintf(newreq, "%s%s", newreq, proxy_conn_hdr);
     sprintf(newreq, "%s\r\n", newreq);
+}
+
+void *thread(void *vargp) {
+    Pthread_detach(Pthread_self()); // 首先将自己分离以方便系统回收
+    while (1) {
+        int connfd = sbuf_remove(&sbuf);    // 当缓冲区中有描述符时，取出并服务
+        doit(connfd);
+        Close(connfd);
+    }
 }
