@@ -23,7 +23,7 @@ typedef struct {
 
 static cache_t Cache;
 static int Hits = 0, Misses = 0, Evicts = 0;
-const int max_time = INT_MAX;
+static const int max_time = INT_MAX;
 
 void initLines() {
     // line_t ** : 指向一个组 
