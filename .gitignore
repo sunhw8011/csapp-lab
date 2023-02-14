@@ -20,3 +20,5 @@ proxy-lab/proxylab-handout/.noproxy/tiny
 proxy-lab/proxylab-handout/.proxy/tiny
 proxy-lab/proxylab-handout/sbuf.o
 proxy-lab/proxylab-handout/.proxy/home.html
+cache-lab/cachelab-handout/csim
+cache-lab/cachelab-handout/.csim_results
