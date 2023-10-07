@@ -85,11 +85,9 @@ void doit(int fd) {
     sscanf(buf, "%s %s %s", method, uri, version);
     printf("client uri is: %s\n", uri);
 
-
-    //printf("经过parse_uri前的uri元素为%s\n", uri);
     parse_uri(uri, hostname, port, path);   // 解析uri中元素，注意这个函数会改变uri
-    //printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
-    //printf("经过parse_uri后的uri元素为%s\n", uri);
+
+    // 尝试去读缓存内容
     sprintf(complete_uri, "%s%s", complete_uri, hostname);
     sprintf(complete_uri, "%s%s", complete_uri, port);
     sprintf(complete_uri, "%s%s", complete_uri, path);
@@ -105,9 +103,6 @@ void doit(int fd) {
     //printf("%s", newreq);
 
     // 与目标服务器建立连接
-    printf("此时，hostname为%s\n", hostname);
-    printf("此时，port为%s\n", port);
-    printf("此时，path为%s\n", path);
     serverfd = Open_clientfd(hostname, port);
     if (serverfd < 0) {
         fprintf(stderr, "connect to real server err");
@@ -160,9 +155,9 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
             sscanf(portpos+1, "%d", &portnum);
         }
         sprintf(port, "%d", portnum);
-        printf("此时uri为:%s\n", uri);
+        //printf("此时uri为:%s\n", uri);
         *portpos = '\0';    // uri被改就是因为这一步！
-        printf("这时uri为:%s\n", uri);
+        //printf("这时uri为:%s\n", uri);
     } else {
         char *pathpos = strstr(hostpos, "/");
         if (pathpos != NULL) {
