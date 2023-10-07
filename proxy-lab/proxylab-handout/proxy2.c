@@ -2,11 +2,10 @@
 
 #include "csapp.h"
 #include "sbuf.h"
-#include "cache.h"
 
-// /* Recommended max cache and object sizes */
-// #define MAX_CACHE_SIZE 1049000
-// #define MAX_OBJECT_SIZE 102400
+/* Recommended max cache and object sizes */
+#define MAX_CACHE_SIZE 1049000
+#define MAX_OBJECT_SIZE 102400
 
 // 设置默认的线程数和同时的连接数
 #define NTHREADS 4
@@ -24,7 +23,6 @@ void build_reqheader(rio_t *rp, char *newreq, char *method, char *hostname, char
 void *thread(void *vargp);
 
 sbuf_t sbuf;
-Cache *cache;
 
 int main(int argc, char** argv)
 {
@@ -42,7 +40,6 @@ int main(int argc, char** argv)
     signal(SIGPIPE, SIG_IGN);   // 防止收到SIGPIPE信号而过早终止
 
     sbuf_init(&sbuf, SBUFSIZE);    // 初始化并发缓冲区
-    cache = init_cache();          // 初始化缓存
 
     // 创建一定数量的工作线程
     for (int i=0; i<NTHREADS; ++i) {
@@ -67,15 +64,13 @@ int main(int argc, char** argv)
 }
 
 void doit(int fd) {
-    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE], object_buf[MAX_OBJECT_SIZE];
+    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     int serverfd;
     int n;
-    int total_size;
     rio_t client_rio, server_rio;
 
     char hostname[MAXLINE], port[MAXLINE], path[MAXLINE];
     char newreq[MAXLINE];
-    char complete_uri[MAXLINE];
 
     // 面对客户端，自己是服务器，接收客户端发送的请求
     Rio_readinitb(&client_rio, fd);
@@ -84,30 +79,13 @@ void doit(int fd) {
     }
     sscanf(buf, "%s %s %s", method, uri, version);
     printf("client uri is: %s\n", uri);
-
-
-    //printf("经过parse_uri前的uri元素为%s\n", uri);
-    parse_uri(uri, hostname, port, path);   // 解析uri中元素，注意这个函数会改变uri
+    parse_uri(uri, hostname, port, path);   // 解析uri中元素
     //printf("hostname: %s\nport: %s\npath: %s\n", hostname, port, path);
-    //printf("经过parse_uri后的uri元素为%s\n", uri);
-    sprintf(complete_uri, "%s%s", complete_uri, hostname);
-    sprintf(complete_uri, "%s%s", complete_uri, port);
-    sprintf(complete_uri, "%s%s", complete_uri, path);
-    // 如果直接命中缓存，那就没有必要继续了
-    if (reader(cache, fd, complete_uri)) {
-        fprintf(stdout, "%s from cache\n", uri);
-        fflush(stdout);
-        return;
-    }
-
     build_reqheader(&client_rio, newreq, method, hostname, port, path); //构造新的请求头
     //pintf("the new req is: \n");
     //printf("%s", newreq);
 
     // 与目标服务器建立连接
-    printf("此时，hostname为%s\n", hostname);
-    printf("此时，port为%s\n", port);
-    printf("此时，path为%s\n", path);
     serverfd = Open_clientfd(hostname, port);
     if (serverfd < 0) {
         fprintf(stderr, "connect to real server err");
@@ -119,15 +97,9 @@ void doit(int fd) {
     Rio_writen(serverfd, newreq, strlen(newreq));
 
     // 将目标服务器的内容接收后原封不动转发给客户端
-    total_size = 0;
     while ((n = Rio_readlineb(&server_rio, buf, MAXLINE))!=0) {
         printf("get %d bytes from server\n", n);
         Rio_writen(fd, buf, n);
-        strcpy(object_buf + total_size, buf);
-        total_size += n;
-    }
-    if (total_size < MAX_OBJECT_SIZE) {
-        writer(cache, complete_uri, object_buf);
     }
 
     Close(serverfd);    // 别忘了关闭文件描述符
@@ -160,9 +132,7 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
             sscanf(portpos+1, "%d", &portnum);
         }
         sprintf(port, "%d", portnum);
-        printf("此时uri为:%s\n", uri);
-        *portpos = '\0';    // uri被改就是因为这一步！
-        printf("这时uri为:%s\n", uri);
+        *portpos = '\0';
     } else {
         char *pathpos = strstr(hostpos, "/");
         if (pathpos != NULL) {
