@@ -13,20 +13,22 @@ typedef struct
 {
     char uri[MAXLINE];
     char obj[MAX_OBJECT_SIZE];
+
+    int reader_count;
+    time_t timestamp;
+    sem_t mutex_reader;
+    sem_t mutex_write; 
 } CacheLine;
 
 typedef struct
 {
     CacheLine data[MAX_CACHELINE_NUM];
-    int current_ptr;    // 用来记录当前应该被替换调的CacheLine
-    
-    int reader_count;
-    sem_t mutex_reader;
-    sem_t mutex_write; 
+    //int current_ptr;    // 用来记录当前应该被替换调的CacheLine
 } Cache;
 
 Cache* init_cache();
 int reader(Cache *cache, int fd, char *uri);
+static int remove_index(Cache *cache);
 void writer(Cache *cache, char *uri, char *buf);
 void delete_cache(Cache *cache);
 
